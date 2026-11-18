@@ -10,8 +10,7 @@ const SpeechRecognitionAPI =
     : null;
 
 export function useSpeechRecognition() {
-  const [supported] = useState(!!SpeechRecognitionAPI);
-  const [listening, setListening] = useState(false);
+  const supported = !!SpeechRecognitionAPI;
   const [finalTranscript, setFinalTranscript] = useState("");
   const [interimTranscript, setInterimTranscript] = useState("");
   const [error, setError] = useState(null);
@@ -106,8 +105,6 @@ export function useSpeechRecognition() {
         } catch {
           /* already started */
         }
-      } else {
-        setListening(false);
       }
     };
 
@@ -140,7 +137,6 @@ export function useSpeechRecognition() {
     }, 10000);
     try {
       recognitionRef.current.start();
-      setListening(true);
     } catch {
       /* already running */
     }
@@ -160,17 +156,6 @@ export function useSpeechRecognition() {
     }
     interimSnapshotsRef.current.clear();
     recognitionRef.current.stop();
-    setListening(false);
-  }, []);
-
-  const reset = useCallback(() => {
-    finalRef.current = "";
-    segmentsRef.current = [];
-    interimSnapshotsRef.current.clear();
-    lastResultIndexRef.current = 0;
-    strippedFillersRef.current = {};
-    setFinalTranscript("");
-    setInterimTranscript("");
   }, []);
 
   const getSegments = useCallback(() => segmentsRef.current, []);
@@ -178,14 +163,12 @@ export function useSpeechRecognition() {
 
   return {
     supported,
-    listening,
     finalTranscript,
     interimTranscript,
     fullTranscript: (finalTranscript + " " + interimTranscript).trim(),
     error,
     start,
     stop,
-    reset,
     getSegments,
     getStrippedFillers,
   };

@@ -8,7 +8,6 @@
 const PAUSE_MIN_S = 0.3; // shorter gaps are just normal articulation
 const FLOOR_MARGIN_DB = 10; // voiced = at least this far above the noise floor
 const EXIT_MARGIN_DB = 6; // hysteresis: stay voiced until level falls closer to floor
-const SMOOTH_WINDOW = 3; // ~50 ms at the normal ~60 Hz sample rate
 const MIN_VOICED_S = 2; // less speech than this → too little data to judge
 const MIN_PITCH_FRAMES = 30; // ~0.5s of voiced pitch before judging monotone
 const SPARK_BUCKETS = 120;

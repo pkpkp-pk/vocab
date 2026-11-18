@@ -80,7 +80,6 @@ flowchart TD
     D -- No --> F[Timer-only session]
     E --> G[Waveform sampling]
     E --> H[SpeechRecognition when supported]
-    E --> I[MediaRecorder capture]
     F --> J[Finish]
     G --> J
     H --> J
@@ -113,11 +112,9 @@ The check can identify a very noisy room, a near-clipping signal, or little appa
 
 `SessionScreen.jsx` coordinates the active exercise. It starts the elapsed-time display, then asks the audio hook for a microphone stream. Only after microphone acquisition does it start speech recognition. This ordering avoids a race between the browser's microphone permission prompt and `SpeechRecognition.start()`.
 
-When available, the same stream feeds two local consumers:
+The microphone stream feeds the Web Audio analyser locally:
 
 - **Web Audio analyser:** samples RMS loudness and estimates pitch. Samples are stored in a ref rather than triggering a React render on every audio frame.
-- **MediaRecorder:** records audio in short chunks, preferring `audio/webm;codecs=opus` when supported. The resulting blob is retained with the session result in memory; the current UI does not upload or play it.
-
 Speech recognition runs independently through the browser's Web Speech API. Interim text is shown in a lighter style; finalized text is accumulated. Some browsers stop recognition after pauses, so the hook restarts it while the session is active. Fatal errors such as permission denial disable the restart loop.
 
 The audio sampler and recognizer share a `performance.now()` start time. This gives their sample times and transcript-segment times a common clock for later approximate alignment.
@@ -132,10 +129,9 @@ When the user finishes, the session:
 - Collects the finalized transcript plus the latest interim text.
 - Adds any trailing interim text to the timestamped segment list so it is included in the annotated transcript.
 - Stops waveform sampling and closes the audio resources.
-- Lets `MediaRecorder` flush its final chunk before building a `Blob`.
 - Sends the resulting in-memory session object to `App.jsx` for analysis.
 
-Leaving the session instead of finishing tears down microphone tracks and discards the recording rather than showing results.
+Leaving the session instead of finishing tears down microphone tracks and discards the current session data.
 
 ### 5. Results
 
@@ -223,13 +219,12 @@ The results screen renders transcript stat cards only when text exists and audio
 
 ## Browser APIs, privacy, and external services
 
-### Microphone and recording
+### Microphone and audio data
 
 - `getUserMedia()` is used for waveform sampling and microphone check.
-- `MediaRecorder` captures a local session blob while the session is active.
 - Web Audio measures sound levels and pitch in the browser.
 - Audio tracks and the `AudioContext` are stopped/closed when a session ends or the session screen unmounts.
-- The current app has no server, upload endpoint, database, session-history store, or playback control for the recording.
+- The app does not retain a raw audio recording, upload microphone audio itself, or provide audio playback.
 
 ### Speech recognition
 
@@ -270,7 +265,7 @@ src/
     Header.jsx / Header.css         Home button, streak, add-topic and settings controls
     CategoryPicker.jsx              Category/difficulty filter pills
     TopicCard.jsx                   Prompt card, spin animation and start action
-    SessionScreen.jsx               Mic check, timer, transcript, hints and recording flow
+    SessionScreen.jsx               Mic check, timer, transcript, and hint flow
     TimerRing.jsx                   Elapsed-time ring and goal state
     KeywordHelper.jsx               Progressive hint reveal
     StatsPanel.jsx                  Session result cards and explanatory sections
@@ -306,7 +301,7 @@ Persistent values are stored as JSON under the existing `speakstage.*` prefix. T
 
 Older installations may still contain `speakstage.apiKey` or `speakstage.aiMode` values from the removed AI feature. The current app no longer reads, uses, or transmits those values; they are left untouched in the user's browser storage.
 
-Session transcript, audio samples, stats, and recording blob live in React memory only. Refreshing or closing the page loses them. The current code does not save past sessions.
+Session transcript, audio samples, and stats live in React memory only. Refreshing or closing the page loses them. The current code does not save past sessions.
 
 The streak uses the browser's local calendar date, not UTC. It increments at most once per local day when the user finishes a session and reaches the results screen. A session does not need to run the full target duration to reach results.
 

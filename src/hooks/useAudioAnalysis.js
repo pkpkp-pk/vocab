@@ -1,10 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { detectPitch } from "../lib/pitch.js";
 
 // Captures the microphone and samples loudness + pitch at display rate into
-// a ref array (never setState at 60 Hz). start() resolves the MediaStream so
-// the caller can also attach a MediaRecorder to the same mic — one
-// permission prompt, two consumers.
+// a ref array (never setState at 60 Hz).
 //
 // autoGainControl is deliberately OFF: with AGC on, the OS normalizes the
 // input level and the volume stats would measure the gain rider, not the
@@ -76,10 +74,7 @@ export async function checkMic(onLevel = () => {}, onPhase = () => {}) {
 }
 
 export function useAudioAnalysis() {
-  const [supported] = useState(
-    typeof navigator !== "undefined" && !!navigator.mediaDevices?.getUserMedia
-  );
-  const [permissionDenied, setPermissionDenied] = useState(false);
+  const supported = typeof navigator !== "undefined" && !!navigator.mediaDevices?.getUserMedia;
 
   const streamRef = useRef(null);
   const ctxRef = useRef(null);
@@ -103,7 +98,7 @@ export function useAudioAnalysis() {
   // opts.stream: reuse an already-open stream (from checkMic) — skips the
   // second getUserMedia prompt entirely.
   const start = useCallback(async (startTime, opts = {}) => {
-    if (!supported) return null;
+    if (!supported) return;
     try {
       const stream =
         opts.stream ??
@@ -135,13 +130,8 @@ export function useAudioAnalysis() {
         rafRef.current = requestAnimationFrame(tick);
       };
       tick();
-      return stream;
-    } catch (err) {
-      if (err?.name === "NotAllowedError" || err?.name === "SecurityError") {
-        setPermissionDenied(true);
-      }
+    } catch {
       teardown();
-      return null;
     }
   }, [supported, teardown]);
 
@@ -151,5 +141,5 @@ export function useAudioAnalysis() {
     return samples;
   }, [teardown]);
 
-  return { supported, permissionDenied, start, stop };
+  return { supported, start, stop };
 }
