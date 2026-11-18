@@ -1,0 +1,172 @@
+.session-screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+  padding: 2rem 1.25rem;
+}
+@media (min-width: 640px) {
+  .session-screen {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}
+
+.session-head {
+  width: 100%;
+  max-width: 36rem;
+  text-align: center;
+}
+
+.session-title {
+  margin-top: 0.5rem;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  line-height: 2rem;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+@media (min-width: 640px) {
+  .session-title {
+    font-size: 1.875rem;
+    line-height: 2.25rem;
+  }
+}
+
+.session-prompt {
+  margin: 0.5rem auto 0;
+  max-width: 28rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: var(--chalkdim);
+}
+
+.session-start {
+  padding: 0.75rem 2rem;
+  font-size: 1rem;
+}
+
+.session-running {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.transcript-live {
+  min-height: 2.5rem;
+  width: 100%;
+  max-width: 28rem;
+  text-align: center;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: var(--chalkdim);
+  padding: 1rem 1.25rem;
+  border: 1px solid rgba(183, 220, 198, 0.14);
+  border-radius: 1rem;
+  background: rgba(17, 37, 31, 0.62);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.025);
+}
+.transcript-final {
+  color: var(--chalk);
+}
+.transcript-interim {
+  color: rgba(201, 195, 180, 0.6);
+}
+.transcript-waiting {
+  font-style: italic;
+  color: rgba(201, 195, 180, 0.5);
+}
+.engine-badge {
+  display: block;
+  margin-top: 0.375rem;
+  font-size: 0.6875rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(201, 195, 180, 0.45);
+}
+
+.session-finish {
+  padding: 0.75rem 2rem;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--chalk);
+  border-color: rgba(255, 255, 255, 0.2);
+  transition: border-color 0.2s, color 0.2s, transform 0.15s;
+}
+.session-finish:hover {
+  border-color: rgba(255, 255, 255, 0.4);
+  color: var(--chalk);
+}
+.session-finish:active {
+  transform: scale(0.95);
+}
+
+.session-note {
+  max-width: 24rem;
+  text-align: center;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  color: rgba(201, 195, 180, 0.7);
+}
+
+.session-error {
+  max-width: 24rem;
+  text-align: center;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: var(--coral);
+}
+.session-error-retry {
+  margin-left: 0.375rem;
+  font-size: 0.8125rem;
+  color: var(--amber);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.session-error-retry:hover {
+  color: var(--chalk);
+}
+
+.session-exit {
+  font-size: 0.75rem;
+  color: rgba(201, 195, 180, 0.6);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.session-exit:hover {
+  color: var(--chalkdim);
+}
+
+/* pre-session mic check */
+.mic-check {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+.mic-check-btn {
+  font-size: 0.8125rem;
+  padding: 0.375rem 1rem;
+}
+.mic-meter-track {
+  width: 12rem;
+  height: 0.375rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+.mic-meter-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--amber);
+  transition: width 0.08s linear;
+}
+.mic-check-note {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--chalkdim);
+}

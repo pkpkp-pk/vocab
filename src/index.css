@@ -1,0 +1,358 @@
+/* ========== Design tokens (formerly tailwind.config.js) ========== */
+:root {
+  --stage-950: #100d20;
+  --stage-900: #17122a;
+  --stage-800: #211839;
+  --stage-700: #33234f;
+  --stage-600: #493168;
+  --chalk: #fff2f7;
+  --chalkdim: #d4c4df;
+  --coral: #ff80b5;
+  --coral-dim: #e665a0;
+  --amber: #ffd27a;
+  --amber-dim: #e6b557;
+  --mint: #c39cff;
+  --line-soft: rgba(223, 190, 255, 0.2);
+
+  --font-display: "Fraunces", ui-serif, Georgia, serif;
+  --font-body: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+
+  --shadow-glow:
+    0 0 0 1px rgba(255, 210, 122, 0.28),
+    0 24px 60px -28px rgba(192, 132, 255, 0.48);
+  --shadow-coral: 0 10px 30px -12px rgba(255, 128, 181, 0.55);
+
+  /* CSS stand-ins for framer-motion's springs */
+  --ease-spring-soft: cubic-bezier(0.2, 1.2, 0.4, 1); /* damping 24-32 */
+  --ease-spring-bouncy: cubic-bezier(0.34, 1.56, 0.64, 1); /* damping 14-18 */
+}
+
+/* ========== Mini reset (replaces Tailwind's preflight) ========== */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+button {
+  font: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+}
+
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+ul {
+  list-style: none;
+}
+
+/* ========== Base ========== */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background-color: var(--stage-900);
+  color: var(--chalk);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  background-image:
+    linear-gradient(180deg, rgba(20, 14, 35, 0.1) 0%, rgba(18, 14, 34, 0.26) 37%, rgba(16, 13, 32, 0.88) 100%),
+    url("/images/sakura-valley.jpg");
+  background-size: cover;
+  background-position: center top;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+::selection {
+  background: var(--coral);
+  color: #0f1f1c;
+}
+
+:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 3px;
+  border-radius: 4px;
+  box-shadow: 0 0 0 4px rgba(143, 211, 177, 0.12);
+}
+
+/* ========== Shared keyframes ========== */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* ========== Shared classes (used by several components) ========== */
+
+/* coral call-to-action button ("Start speaking") */
+.btn-primary {
+  display: inline-block;
+  border-radius: 999px;
+  background: var(--coral);
+  color: var(--stage-950);
+  font-weight: 500;
+  padding: 0.625rem 1.5rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  box-shadow: var(--shadow-coral);
+}
+
+/* amber call-to-action button ("Save", "Next topic") */
+.btn-amber {
+  display: inline-block;
+  border-radius: 999px;
+  background: var(--amber);
+  color: var(--stage-950);
+  font-weight: 500;
+  padding: 0.5rem 1.25rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+/* outlined secondary button ("Spin again") */
+.btn-ghost {
+  display: inline-block;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: var(--chalkdim);
+  padding: 0.625rem 1.25rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+/* text input / select / textarea */
+.input {
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: var(--stage-900);
+  padding: 0.625rem 1rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: var(--chalk);
+}
+.input::placeholder {
+  color: rgba(201, 195, 180, 0.5);
+}
+textarea.input {
+  resize: none;
+}
+
+/* panel card */
+.card {
+  border-radius: 1rem;
+  border: 1px solid var(--line-soft);
+  background: rgba(30, 22, 48, 0.84);
+  box-shadow: 0 16px 36px rgba(8, 5, 20, 0.28);
+}
+.card-dim {
+  background: rgba(30, 22, 48, 0.62);
+}
+
+/* small rounded tag */
+.chip {
+  display: inline-block;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 0.25rem 0.75rem;
+  color: var(--chalkdim);
+}
+
+/* small uppercase section label */
+.label-xs {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  color: rgba(201, 195, 180, 0.8);
+}
+
+/* thin scrollbar for scrollable panels */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(245, 241, 232, 0.2);
+  border-radius: 999px;
+}
+
+/* ========== Hover / interaction behaviour ========== */
+
+/* primary + amber buttons: lift, sweep, glow */
+.btn-primary,
+.btn-amber {
+  position: relative;
+  overflow: hidden;
+  transition:
+    transform 0.18s var(--ease-spring-bouncy),
+    box-shadow 0.22s ease,
+    filter 0.22s ease;
+}
+
+/* light sweep across the button */
+.btn-primary::after,
+.btn-amber::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -120%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.25),
+    transparent
+  );
+  transform: skewX(-20deg);
+  transition: left 0.5s ease;
+}
+
+.btn-primary:hover,
+.btn-amber:hover {
+  transform: translateY(-3px) scale(1.025);
+  filter: brightness(1.06);
+}
+
+.btn-primary:hover {
+  box-shadow:
+    0 14px 35px -10px rgba(214, 244, 237, 0.55),
+    0 0 20px rgba(214, 244, 237, 0.12);
+}
+
+.btn-amber:hover {
+  box-shadow:
+    0 12px 30px -10px rgba(143, 211, 177, 0.4),
+    0 0 18px rgba(143, 211, 177, 0.12);
+}
+
+.btn-primary:hover::after,
+.btn-amber:hover::after {
+  left: 130%;
+}
+
+.btn-primary:active,
+.btn-amber:active {
+  transform: translateY(0) scale(0.96);
+}
+
+/* ghost buttons */
+.btn-ghost {
+  transition:
+    transform 0.18s var(--ease-spring-soft),
+    border-color 0.2s ease,
+    color 0.2s ease,
+    background-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.btn-ghost:hover {
+  transform: translateY(-2px);
+  border-color: rgba(143, 211, 177, 0.65);
+  color: var(--chalk);
+  background: rgba(143, 211, 177, 0.08);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.22);
+}
+
+.btn-ghost:active {
+  transform: translateY(0) scale(0.97);
+}
+
+/* chips / category pills */
+.chip {
+  transition:
+    transform 0.18s var(--ease-spring-bouncy),
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.chip:hover {
+  transform: translateY(-2px);
+  background: rgba(143, 211, 177, 0.15);
+  border-color: rgba(143, 211, 177, 0.30);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.18);
+}
+
+/* inputs */
+.input {
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
+}
+
+.input:hover {
+  border-color: rgba(143, 211, 177, 0.35);
+}
+
+.input:focus {
+  border-color: rgba(143, 211, 177, 0.75);
+  box-shadow: 0 0 0 3px rgba(143, 211, 177, 0.10);
+}
+
+/* cards */
+.card {
+  transition:
+    transform 0.2s var(--ease-spring-soft),
+    border-color 0.2s ease,
+    box-shadow 0.25s ease;
+}
+
+.card:hover {
+  border-color: rgba(143, 211, 177, 0.22);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.24);
+}
+
+/* icon buttons */
+button[aria-label],
+.icon-button {
+  transition:
+    transform 0.18s var(--ease-spring-bouncy),
+    background-color 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+button[aria-label]:hover,
+.icon-button:hover {
+  transform: translateY(-2px) scale(1.05);
+  background-color: rgba(143, 211, 177, 0.10);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.18);
+}
+
+button[aria-label]:active,
+.icon-button:active {
+  transform: scale(0.92);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
