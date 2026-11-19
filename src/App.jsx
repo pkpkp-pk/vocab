@@ -233,7 +233,7 @@ export default function App() {
   };
 
   return (
-    <div className="app-shell" id="top">
+    <div className="app-shell">
       <Header
         onHome={() => setStage("select")}
         onOpenCustomTopics={() => setCustomModalOpen(true)}
@@ -315,12 +315,7 @@ export default function App() {
       <AuthModal open={accountOpen} onClose={() => setAccountOpen(false)} supabase={supabase} user={user} />
       <HistoryModal open={historyOpen} onClose={() => setHistoryOpen(false)} supabase={supabase} user={user} />
 
-      <AppFooter
-        onHome={() => setStage("select")}
-        onAddTopic={() => setCustomModalOpen(true)}
-        onOpenHistory={() => setHistoryOpen(true)}
-        onOpenAccount={() => setAccountOpen(true)}
-      />
+      <AppFooter />
     </div>
   );
 }

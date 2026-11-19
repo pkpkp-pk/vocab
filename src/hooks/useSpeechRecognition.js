@@ -139,6 +139,9 @@ export function useSpeechRecognition() {
           setup: {
             model: `models/${MODEL}`,
             generationConfig: { responseModalities: ["TEXT"] },
+            realtimeInputConfig: {
+              automaticActivityDetection: { disabled: true },
+            },
             inputAudioTranscription: { languageCodes: [], mode: "VERBATIM" },
           },
         }));
@@ -159,6 +162,7 @@ export function useSpeechRecognition() {
         }
         if (message.setupComplete) {
           try {
+            socket.send(JSON.stringify({ realtimeInput: { activityStart: {} } }));
             startAudio(stream, socket);
             setListening(true);
           } catch {
@@ -220,27 +224,37 @@ export function useSpeechRecognition() {
     teardownAudio();
     const socket = socketRef.current;
     if (socket?.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify({ realtimeInput: { audioStreamEnd: true } }));
+      socket.send(JSON.stringify({ realtimeInput: { activityEnd: {} } }));
       clearTimeout(drainTimerRef.current);
       drainTimerRef.current = setTimeout(() => {
         closeSocket();
         setListening(false);
-      }, 900);
+      }, 2500);
     } else {
       closeSocket();
       setListening(false);
     }
     return new Promise((resolve) => {
       if (!socket || socket.readyState !== WebSocket.OPEN) return resolve();
-      const timer = setTimeout(resolve, 1100);
+      let settled = false;
+      const finishDrain = () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        clearTimeout(drainTimerRef.current);
+        closeSocket();
+        setListening(false);
+        resolve();
+      };
+      const timer = setTimeout(finishDrain, 3000);
       const previous = socket.onmessage;
       socket.onmessage = (event) => {
         previous?.(event);
         let message;
         try { message = JSON.parse(event.data || "{}"); } catch { return; }
-        if (message?.serverContent?.turnComplete) {
-          clearTimeout(timer);
-          resolve();
+        const content = message?.serverContent;
+        if (content?.inputTranscription || content?.generationComplete || content?.turnComplete) {
+          finishDrain();
         }
       };
     });
