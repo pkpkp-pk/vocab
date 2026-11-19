@@ -81,7 +81,7 @@ flowchart TD
     D -- Yes --> E[Open one microphone stream]
     D -- No --> F[Timer-only session]
     E --> G[Waveform sampling]
-    E --> H[SpeechRecognition when supported]
+    E --> H[Gemini Live transcription]
     E --> I[MediaRecorder capture]
     F --> J[Finish]
     G --> J
@@ -115,14 +115,14 @@ The check can identify a very noisy room, a near-clipping signal, or little appa
 
 ### 3. Starting and running
 
-`SessionScreen.jsx` coordinates the active exercise. It starts the elapsed-time display, then asks the audio hook for a microphone stream. Only after microphone acquisition does it start speech recognition. This ordering avoids a race between the browser's microphone permission prompt and `SpeechRecognition.start()`.
+`SessionScreen.jsx` coordinates the active exercise. It starts the elapsed-time display, then asks the audio hook for a microphone stream. Only after microphone acquisition does it connect to Gemini Live, so the app has one microphone permission prompt.
 
 When available, the same stream feeds two local consumers:
 
 - **Web Audio analyser:** samples RMS loudness and estimates pitch. Samples are stored in a ref rather than triggering a React render on every audio frame.
 - **MediaRecorder:** records audio in short chunks, preferring `audio/webm;codecs=opus` when supported. The resulting blob is retained with the session result in memory; the current UI does not upload or play it.
 
-Speech recognition runs independently through the browser's Web Speech API. Interim text is shown in a lighter style; finalized text is accumulated. Some browsers stop recognition after pauses, so the hook restarts it while the session is active. Fatal errors such as permission denial disable the restart loop.
+`useSpeechRecognition.js` converts the microphone signal to 16 kHz mono PCM and streams it directly from the browser to Gemini Live over a WebSocket. A short-lived, single-use token is requested from `/api/transcription-token`; that Vercel Function verifies the Supabase session and asks Gemini for a token restricted to the live transcription model and verbatim text output. Supabase also limits token issuance to 20 requests per user per UTC day. Interim text is shown in a lighter style, and finalized transcript segments are accumulated with approximate arrival timestamps. The audio connection does not pass through Vercel.
 
 The audio sampler and recognizer share a `performance.now()` start time. This gives their sample times and transcript-segment times a common clock for later approximate alignment.
 
@@ -132,7 +132,7 @@ Hints come from the selected topic. `KeywordHelper.jsx` reveals the first three 
 
 When the user finishes, the session:
 
-- Stops the timer and recognition loop.
+- Stops the timer and audio stream, signals the end of audio to Gemini, and waits briefly for the final transcript message.
 - Collects the finalized transcript plus the latest interim text.
 - Adds any trailing interim text to the timestamped segment list so it is included in the annotated transcript.
 - Stops waveform sampling and closes the audio resources.
@@ -162,7 +162,7 @@ The deterministic transcript, vocabulary, and audio analysis functions in `src/l
 - **Ambiguous words:** `like` and `right` are counted separately as possible fillers because both are often ordinary words.
 - **Hint keywords:** checks whether each topic keyword appears as a whole-word/phrase match in the transcript.
 
-Chrome may remove fillers before exposing either the final transcript or some interim results. The recognition hook attempts to catch a filler when it appears in an interim result and disappears from its finalized counterpart. This cannot recover a word the browser never provides. Short audio regions with no transcript assignment are shown separately as **possible** fillers; audio levels alone cannot identify that a sound was definitely “um.”
+Gemini Live is configured for verbatim transcription, which is intended to preserve filler words, repetitions, and false starts. Recognition can still omit or mishear speech. Short audio regions with no transcript assignment are shown separately as **possible** fillers; audio levels alone cannot identify that a sound was definitely “um.”
 
 ### Vocabulary indicators — `analyzeVocabulary.js`
 
@@ -235,13 +235,13 @@ The results screen renders transcript stat cards only when text exists and audio
 - `MediaRecorder` captures a local session blob while the session is active.
 - Web Audio measures sound levels and pitch in the browser.
 - Audio tracks and the `AudioContext` are stopped/closed when a session ends or the session screen unmounts.
-- The app never uploads the raw recording or provides audio playback. Signed-in users' topic and transcript history is saved separately in Supabase; audio blobs and waveform samples remain in browser memory.
+- `MediaRecorder` keeps an in-memory recording blob for the current results flow, but the app does not save or upload that blob. Separately, the live microphone stream is sent directly to Gemini for transcription. Signed-in users' topic and transcript history is saved to Supabase; waveform samples remain in browser memory.
 
 ### Speech recognition
 
-The app uses `window.SpeechRecognition` or `window.webkitSpeechRecognition` if present. Support varies by browser and platform; Chrome/Edge are the intended path. In Chrome, speech recognition may send audio to Google's speech service for processing. The transcript may be incomplete or corrected by the browser. If the user is signed in, the finished session transcript is also saved to Supabase so they can review it later.
+The app streams audio to Google's `gemini-3.5-transcribe-live` model. A signed-in user is required because the Vercel token route validates the user's Supabase session. The model returns interim and finalized text, and the app accumulates it for local analysis and (when signed in) the user's Supabase history. Verbatim mode is selected to retain fillers. Google's free API tier may use submitted content to improve its products; check the current Gemini API data terms and pricing before using personal or sensitive speech.
 
-The timer, topic prompts, keyword hints, and local waveform analysis can still run without the SpeechRecognition API, subject to microphone permission and Web Audio support.
+The timer and topic prompts still run when transcription is unavailable. Waveform analysis requires microphone permission and Web Audio support; live transcript capture also needs a working connection to Gemini and the Vercel API route.
 
 ### Accounts and session history
 
@@ -263,11 +263,13 @@ Without configuration, the app continues to work locally and displays setup guid
 
 ### AI speaking feedback
 
-`src/lib/coach.js` calls the same-origin `/api/evaluate-session` Vercel Function after a signed-in user finishes speaking. The function validates the Supabase access token, atomically applies a five-evaluations-per-user-per-UTC-day limit through `claim_ai_coaching_request()`, and asks Gemini 3.5 Flash-Lite for JSON containing a 0–100 score plus 2–3 suggestions. The rubric covers topic relevance, organization, idea development, and vocabulary/grammar while adjusting expectations to the difficulty. It does not score accent, pronunciation, confidence, or other audio properties because only the transcript is sent.
+`src/lib/coach.js` calls the same-origin `/api/evaluate-session` Vercel Function after a signed-in user finishes speaking. The function validates the Supabase access token, atomically applies a five-evaluations-per-user-per-UTC-day limit through `claim_ai_coaching_request()`, and asks Gemini for JSON containing a 0–100 score plus 2–3 suggestions. The rubric covers topic relevance, organization, idea development, and vocabulary/grammar while adjusting expectations to the difficulty. It does not score accent, pronunciation, confidence, or other audio properties because only the transcript is sent.
+
+`GEMINI_MODEL` accepts one or two comma-separated model IDs. With two, a database-backed global sequence alternates model selection on every allowed request, including across Vercel function instances. If unset, the app uses `gemini-3.5-flash-lite`.
 
 The endpoint rejects non-POST and cross-origin browser requests, requires authentication, and caps transcript size at 12,000 characters. The Gemini key stays server-side in `GEMINI_API_KEY`; do not name it `VITE_GEMINI_API_KEY`. The transcript is sent to Google's Gemini service for evaluation. Review Google's current data-use terms for the API tier you select, especially before sending personal information.
 
-Add `GEMINI_API_KEY` to Vercel's server environment and redeploy. The existing Vercel-Supabase integration must provide `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`; re-run the updated `supabase/schema.sql` once so the quota table and RPC exist. For local calls, copy `.env.example` to `.env.local`, put the same Supabase URL and publishable key under both the `VITE_` and server-side names, and add your Gemini key. Use `vercel dev`; Vite's `npm run dev` only serves the client. The function has a 30-second maximum, within Vercel Hobby's function limit.
+Add `GEMINI_API_KEY` and a comma-separated two-model `GEMINI_MODEL` to Vercel's server environment, then redeploy. The existing Vercel-Supabase integration must provide `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`; re-run the updated `supabase/schema.sql` once so the quota and rotation tables/RPC exist. For local calls, copy `.env.example` to `.env.local`, put the same Supabase URL and publishable key under both the `VITE_` and server-side names, and add your Gemini key and model IDs. Use `vercel dev`; Vite's `npm run dev` only serves the client. The function has a 30-second maximum, within Vercel Hobby's function limit.
 
 ### AI and API features
 
@@ -292,7 +294,7 @@ src/
   hooks/
     useLocalStorage.js             Validated JSON persistence helper
     useAuth.js                     Supabase account session state
-    useSpeechRecognition.js        Web Speech API lifecycle and transcript accumulation
+    useSpeechRecognition.js        Gemini Live WebSocket, audio conversion, and transcript accumulation
     useAudioAnalysis.js            Mic check, Web Audio sampling and cleanup
   lib/
     analyzeSpeech.js               Transcript counts, fillers, pace, hint keyword use
@@ -382,9 +384,9 @@ This project is a Vite static site. On Vercel, use the Vite preset with:
 | Build command | `npm run build` |
 | Output directory | `dist` |
 
-One small Node.js Vercel Function handles AI feedback; Vercel Hobby supports Functions within its usage and duration limits. Supabase is optional for basic practice and history. Live transcription may contact the browser's speech service.
+Small Node.js Vercel Functions issue Gemini transcription tokens and evaluate completed transcripts. The live WebSocket and audio stream remain in the browser-to-Gemini connection, so the function does not need to stay running for a speaking session. Supabase remains optional for basic practice and history, but is required for authenticated token issuance and cloud history.
 
-To enable history and coaching, connect Supabase from the Vercel Marketplace and run the updated `supabase/schema.sql` in that project's SQL Editor. Set the server-only `GEMINI_API_KEY` Vercel environment variable, then redeploy. The Supabase integration provides `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`. For local development, copy `.env.example` to `.env.local`, set the browser and server-side Supabase variables to the same values, add `GEMINI_API_KEY`, then run `vercel dev` for both the app and API function. The Vercel Function makes one bounded Gemini request after each completed transcript and allows five per user per day.
+To enable history and coaching, connect Supabase from the Vercel Marketplace and run the current `supabase/schema.sql` in that project's SQL Editor. Set the server-only `GEMINI_API_KEY` Vercel environment variable, then redeploy. The Supabase integration provides `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`. For local development, copy `.env.example` to `.env.local`, set the browser and server-side Supabase variables to the same values, add `GEMINI_API_KEY`, then run `vercel dev` for both the app and API functions. The evaluation route allows five scoring requests per user per day.
 
 The `vite.config.js` file sets the development port to 5173, opens the dev page automatically, and allows `.ngrok-free.app` hosts for development previews. Vercel deploys the generated static `dist/` directory.
 
@@ -392,14 +394,13 @@ The `vite.config.js` file sets the development port to 5173, opens the dev page 
 
 ## Current limitations and implementation notes
 
-- **Browser speech support varies.** SpeechRecognition is not consistently available across browsers; recognized content can be partial or inaccurate.
-- **Fillers can be lost upstream.** If Chrome never exposes an “um/uh” in interim or final text, this app cannot know which exact word was spoken. Waveform leftovers are only possible fillers.
+- **Network and provider access are required for transcription.** It needs an authenticated API token and a stable WebSocket connection to Gemini; recognized content can still be partial or inaccurate.
+- **Verbatim mode helps filler detection but cannot guarantee it.** Gemini may still omit or mishear a filler. Waveform leftovers are only possible fillers.
 - **Voice detection is level based.** It smooths and applies hysteresis, but is not a trained voice activity detector. Background sound and soft speech can still be misclassified.
-- **Word timing is approximate.** Web Speech recognition does not expose word timestamps; the heatmap estimates them by spreading words across a segment's detected voice region.
+- **Word timing is approximate.** Live transcription returns utterance segments rather than word-level timestamps; the heatmap estimates word positions by spreading words across a segment's detected voice region.
 - **Microphone volume labels are relative.** Fixed dBFS thresholds can vary in usefulness with hardware, distance, room, and input processing.
 - **History setup is external.** Cloud history requires the Supabase schema, project environment variables, and Auth redirect URLs. Without that setup the rest of the practice flow remains available.
-- **No AI feature is included.** The topic flow is fully local apart from browser-managed speech recognition.
-- **No AI coach or pronunciation analysis.** Older project notes may mention these, but there are no such modules in the current `src/` tree.
+- **Scoring and transcription are separate Gemini features.** Transcription always uses `gemini-3.5-transcribe-live`; transcript scoring uses the optional `GEMINI_MODEL` rotation.
 - **External font request.** Google Fonts may be unavailable offline; system fallbacks are configured.
 - **No automated framework test command.** The project includes a standalone Node check script for pure libraries and a server-rendered heatmap check; `package.json` does not define an `npm test` script.
 

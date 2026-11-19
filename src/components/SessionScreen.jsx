@@ -19,18 +19,29 @@ function micVerdict({ floorDb, peakDb, voicedPct }) {
   return `Mic sounds good (noise floor ${floorDb} dB).`;
 }
 
-// Human-readable copy for Chrome SpeechRecognition error codes.
+// Human-readable copy for Gemini Live API and browser audio errors.
 function friendlySpeechError(code) {
   switch (code) {
-    case "not-allowed":
-      return "Microphone access is blocked — allow it via the address-bar icon, then retry.";
-    case "audio-capture":
-      return "No microphone signal — check your input device.";
-    case "service-not-allowed":
-    case "network":
-      return "Chrome's speech service is unreachable — check your connection.";
-    case "no-results":
-      return "Nothing came back from the speech service. On Android, open Play Store → update/enable the Google app and \"Speech Recognition & Synthesis\", then retry — or use Chrome on a laptop.";
+    case "sign-in-required":
+    case "sign_in_required":
+      return "Sign in to use Gemini transcription, then retry.";
+    case "auth_not_configured":
+    case "supabase_unavailable":
+      return "Your account service could not be reached. Check the Supabase setup and retry.";
+    case "transcription_daily_limit":
+      return "You've reached today's live transcription limit. Try again tomorrow.";
+    case "transcription_quota_not_configured":
+      return "Live transcription limits are not set up yet. Run the latest Supabase schema, then retry.";
+    case "model_not_configured":
+      return "Gemini transcription is not configured yet. Add GEMINI_API_KEY to Vercel and redeploy.";
+    case "model_key_invalid":
+      return "Gemini rejected the API key. Check GEMINI_API_KEY in Vercel settings.";
+    case "token_request_failed":
+    case "model-unavailable":
+    case "connection-closed":
+      return "Gemini transcription could not connect. Check your connection and retry.";
+    case "audio-unavailable":
+      return "Audio capture is unavailable. Check your microphone and browser permissions.";
     default:
       return `Transcription error: ${code}.`;
   }
@@ -114,7 +125,7 @@ export default function SessionScreen({ topic, targetSeconds, onFinish, onExit }
     calibStreamRef.current = null; // the hook owns it now (stopped at stop())
     t0Ref.current = t0;
     streamRef.current = stream; // kept for the error-retry path
-    if (speech.supported) speech.start(t0, stream);
+    if (speech.supported && stream) speech.start(t0, stream);
     if (stream && typeof MediaRecorder !== "undefined") {
       chunksRef.current = [];
       const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
@@ -129,10 +140,10 @@ export default function SessionScreen({ topic, targetSeconds, onFinish, onExit }
     }
   };
 
-  const endSession = () => {
+  const endSession = async () => {
     setRunning(false);
     clearInterval(intervalRef.current);
-    if (speech.supported) speech.stop();
+    if (speech.supported) await speech.stop();
     streamRef.current = null;
 
     // Timestamped final segments for waveform alignment. If the user finishes
@@ -140,7 +151,7 @@ export default function SessionScreen({ topic, targetSeconds, onFinish, onExit }
     // it so the annotated transcript covers everything that was said.
     const speechSegments = speech.supported ? speech.getSegments().slice() : [];
     const joined = speechSegments.map((s) => s.text).join(" ").trim();
-    const full = speech.fullTranscript;
+    const full = speech.supported ? speech.getFullTranscript() : speech.fullTranscript;
     const leftover = full.length > joined.length ? full.slice(joined.length).trim() : "";
     if (leftover) speechSegments.push({ text: leftover, endedAt: elapsed });
 
@@ -152,7 +163,7 @@ export default function SessionScreen({ topic, targetSeconds, onFinish, onExit }
         audioSamples: audio.stop(),
         audioBlob,
         speechSegments,
-        // "um"/"uh" Chrome stripped from finals, recovered from interims.
+        // Gemini VERBATIM mode keeps fillers in the returned transcript.
         strippedFillers: speech.supported ? { ...speech.getStrippedFillers() } : {},
         // Measured noise floor from the mic check (null = adaptive fallback).
         micFloorDb: micFloorRef.current,
@@ -239,7 +250,7 @@ export default function SessionScreen({ topic, targetSeconds, onFinish, onExit }
               {!speech.error && !speech.finalTranscript && !speech.interimTranscript && (
                 <span className="transcript-waiting">listening…</span>
               )}
-              <span className="engine-badge">Chrome transcription</span>
+              <span className="engine-badge">Gemini Live transcription</span>
             </div>
           )}
 
@@ -265,8 +276,7 @@ export default function SessionScreen({ topic, targetSeconds, onFinish, onExit }
 
       {!speech.supported && (
         <p className="session-note">
-          Your browser doesn't support live transcription — try Chrome or Edge.
-          The timer and keyword prompts still work fine here.
+          This browser does not support live audio capture. The timer and keyword prompts still work here.
         </p>
       )}
 

@@ -51,10 +51,9 @@ export function tokensOf(text) {
 }
 
 // Disfluency counts for words that were present in an interim snapshot but
-// vanished from the finalized result — exactly the "um"/"uh" Chrome's
-// server-side cleanup removed. Only the latest snapshot per result is diffed
-// (earlier interim revisions can wobble a word in and out, which would
-// overcount), and only known disfluencies count, so ordinary recognition
+// vanished from the finalized result. Kept for older callers that can supply
+// independently recovered fillers; Gemini verbatim mode usually includes
+// fillers directly. Only known disfluencies count, so ordinary recognition
 // revisions ("their" → "there") never inflate the number.
 export function diffStrippedFillers(interimText, finalText) {
   const interimCounts = new Map();

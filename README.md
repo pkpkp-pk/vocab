@@ -17,11 +17,10 @@ npm install
 npm run dev
 ```
 
-Open the printed local URL (usually `http://localhost:5173`). For the mic
-transcription feature, use Chrome or Edge and allow microphone access when
-prompted — Safari/Firefox have limited or no support for the underlying
-`SpeechRecognition` API, but the timer and keyword-hint features still work
-everywhere.
+Open the printed local URL (usually `http://localhost:5173`). Allow microphone
+access when prompted. Gemini Live transcription requires a signed-in user and
+the Vercel API routes, so run the app with `vercel dev` rather than plain Vite
+when testing transcription locally.
 
 Build for production with `npm run build`; preview that build with
 `npm run preview`.
@@ -34,9 +33,11 @@ URL and publishable key at build time; connect it in Vercel and redeploy after
 applying `supabase/schema.sql` in the Supabase SQL Editor. For local use, copy
 `.env.example` to `.env.local` and fill in both the `VITE_SUPABASE_*` browser
 values and the matching server-side `SUPABASE_*` values. Basic practice and
-history need no Vercel Function. AI feedback uses one; add `GEMINI_API_KEY` as
-a server-only Vercel environment variable, apply the current SQL schema, and
-redeploy to enable it. Use `vercel dev` locally to run the API route.
+history need no Vercel Function. Gemini Live transcription and AI feedback use
+short Vercel Functions; add `GEMINI_API_KEY` as a server-only Vercel environment
+variable, apply the current SQL schema, and redeploy to enable them. Audio is
+streamed from the signed-in browser directly to Gemini using a one-use,
+short-lived token minted by `/api/transcription-token`.
 
 ## How it works
 
@@ -48,8 +49,12 @@ redeploy to enable it. Use `vercel dev` locally to run the API route.
   time for the chosen difficulty (2/3/4 min). If you stall, tap
   "Stuck? Get a few words" to reveal keywords a few at a time — not the
   whole list at once, so it stays a nudge rather than a script.
-- **Live transcription** — uses the browser's built-in `SpeechRecognition`
-  API, no key needed for this part (audio goes to Google's speech service).
+- **Live transcription** — sends 16 kHz mono audio from the browser directly to
+  Gemini `gemini-3.5-transcribe-live` over a WebSocket. The API route verifies
+  the signed-in Supabase user and issues a single-use, short-lived Gemini token;
+  each account can request up to 20 tokens per day. Vercel does not proxy or
+  hold the live audio connection. Verbatim mode is used so filler words and
+  false starts can be retained.
 - **Mic check** — optional 4-second pre-session check measures your noise
   floor (feeding the pause/voicing detectors — fluent nonstop talkers
   otherwise get undercounted), catches dead or clipping mics, and settles
@@ -59,11 +64,9 @@ redeploy to enable it. Use `vercel dev` locally to run the API route.
   (early planner / spread out / late scrambler).
 - **Stats** — word count, words-per-minute, filler-word count/breakdown
   (um, uh, like, you know, etc.), and how many hint keywords you actually
-  used, computed in `src/lib/analyzeSpeech.js`. Chrome's recognizer silently
-  drops "um"/"uh" from final transcripts, so fillers are recovered two ways:
-  by diffing interim snapshots against the finalized text
-  (`diffStrippedFillers`), and by flagging short voiced regions in the
-  waveform that no transcript words landed on (`alignTranscript`).
+  used, computed in `src/lib/analyzeSpeech.js`. Gemini's verbatim live mode
+  returns filler words as transcript text. Short voiced regions with no
+  transcript words are still shown as possible fillers, not certain words.
 - **Voice analysis** — pauses, loudness, and pitch variety measured from the
   raw waveform with the Web Audio API (`src/lib/analyzeAudio.js`,
   `src/lib/pitch.js`), so they work in any modern browser — no transcript
@@ -76,7 +79,9 @@ redeploy to enable it. Use `vercel dev` locally to run the API route.
 - **AI speaking feedback** — after a signed-in user finishes a session with a
   transcript, Gemini returns a 0–100 score and 2–3 suggestions. A protected
   Vercel Function keeps the Gemini key off the browser; each account is limited
-  to five evaluations per day.
+  to five evaluations per day. This uses `GEMINI_MODEL` (which can list two
+  model IDs to alternate between); transcription always uses the dedicated
+  `gemini-3.5-transcribe-live` model.
 - **Topics stay local** — this version uses the built-in prompt bank and
   custom prompts saved in this browser. It has no AI topic-generation or API
   key settings feature.

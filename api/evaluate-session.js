@@ -2,7 +2,11 @@ import { createClient } from "@supabase/supabase-js";
 
 const MAX_TRANSCRIPT_CHARS = 12_000;
 const MAX_DAILY_EVALUATIONS = 5;
-const MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
+const MODELS = (process.env.GEMINI_MODEL || "gemini-3.5-flash-lite")
+  .split(",")
+  .map((model) => model.trim())
+  .filter(Boolean)
+  .slice(0, 2);
 
 function reply(res, status, payload) {
   res.setHeader("Cache-Control", "no-store");
@@ -45,6 +49,7 @@ export default async function handler(req, res) {
   const geminiKey = process.env.GEMINI_API_KEY;
   if (!supabaseUrl || !supabaseKey) return reply(res, 503, { error: "supabase_server_config_missing" });
   if (!geminiKey) return reply(res, 503, { error: "model_not_configured" });
+  if (!MODELS.length) return reply(res, 503, { error: "model_not_configured" });
 
   const client = createClient(supabaseUrl, supabaseKey, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
@@ -71,15 +76,19 @@ export default async function handler(req, res) {
   }
   if (transcript.length > MAX_TRANSCRIPT_CHARS) return reply(res, 413, { error: "transcript_too_long" });
 
-  let allowed;
+  let rotation;
   let quotaError;
   try {
-    ({ data: allowed, error: quotaError } = await client.rpc("claim_ai_coaching_request"));
+    ({ data: rotation, error: quotaError } = await client.rpc("claim_ai_coaching_request"));
   } catch {
     return reply(res, 503, { error: "coaching_quota_not_configured" });
   }
   if (quotaError) return reply(res, 503, { error: "coaching_quota_not_configured" });
-  if (!allowed) return reply(res, 429, { error: "daily_limit_reached", limit: MAX_DAILY_EVALUATIONS });
+  if (rotation === 0) return reply(res, 429, { error: "daily_limit_reached", limit: MAX_DAILY_EVALUATIONS });
+  if (!Number.isSafeInteger(rotation) || rotation < 1) {
+    return reply(res, 503, { error: "coaching_quota_not_configured" });
+  }
+  const model = MODELS[(rotation - 1) % MODELS.length];
 
   const requestBody = {
     systemInstruction: {
@@ -110,7 +119,7 @@ export default async function handler(req, res) {
   let providerResponse;
   try {
     providerResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(MODEL)}:generateContent`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-goog-api-key": geminiKey },
