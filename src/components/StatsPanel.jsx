@@ -40,7 +40,7 @@ function VolumeSpark({ spark, sparkPauses }) {
   );
 }
 
-export default function StatsPanel({ topic, result, stats, onRetry, onNewTopic }) {
+export default function StatsPanel({ topic, result, stats, onRetry, onNewTopic, historySaveState, coachingState }) {
   const hasTranscript = result.transcript?.trim().length > 0;
   const a = stats.audio;
   // Short voiced regions in the waveform that no transcript words landed on.
@@ -207,6 +207,29 @@ export default function StatsPanel({ topic, result, stats, onRetry, onNewTopic }
         </details>
       ) : null}
 
+      {hasTranscript && (
+        <section className="card card-dim coach-panel" aria-live="polite">
+          <div className="coach-heading">
+            <div>
+              <p className="label-xs">gemini speaking coach</p>
+              <h3>Feedback for this session</h3>
+            </div>
+            {coachingState?.status === "ready" && (
+              <div className="coach-score"><strong>{coachingState.evaluation.score}</strong><span>/100</span></div>
+            )}
+          </div>
+          {coachingState?.status === "loading" && <p className="coach-note">Reading your transcript and preparing feedback…</p>}
+          {coachingState?.status === "signed-out" && <p className="coach-note">Sign in first to get private AI feedback for your session.</p>}
+          {coachingState?.status === "error" && <p className="coach-note coach-error">{coachingState.message}</p>}
+          {coachingState?.status === "ready" && (
+            <ol className="coach-suggestions">
+              {coachingState.evaluation.suggestions.map((suggestion, index) => <li key={index}>{suggestion}</li>)}
+            </ol>
+          )}
+          <p className="coach-privacy">Your transcript is sent to Gemini for scoring; your audio is not sent. Google may use submissions on its free API tier to improve its products, so avoid personal details.</p>
+        </section>
+      )}
+
       <div className="stats-actions">
         <button onClick={onRetry} className="btn-ghost stats-retry">
           ⟲ Try this topic again
@@ -215,6 +238,12 @@ export default function StatsPanel({ topic, result, stats, onRetry, onNewTopic }
           Next topic →
         </button>
       </div>
+      <p className={`history-save-note ${historySaveState?.status === "error" ? "is-error" : ""}`} role="status">
+        {historySaveState?.status === "saved" && "Saved to your account history."}
+        {historySaveState?.status === "saving" && "Saving this session to your history…"}
+        {historySaveState?.status === "error" && `This session could not be saved: ${historySaveState.message}`}
+        {historySaveState?.status === "signed-out" && "Sign in to keep this session in your practice history."}
+      </p>
     </div>
   );
 }

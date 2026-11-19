@@ -1,0 +1,71 @@
+.history-modal {
+  max-width: 42rem;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+.history-heading,
+.history-item-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.history-empty {
+  margin-top: 1.5rem;
+  padding: 1.25rem;
+  border-radius: 1rem;
+  background: rgba(10, 7, 20, 0.28);
+  color: var(--chalkdim);
+  text-align: center;
+  font-size: 0.875rem;
+}
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+.history-item {
+  min-width: 0;
+  padding: 1rem;
+}
+.history-item h3 {
+  font-family: var(--font-display);
+  font-size: 1rem;
+}
+.history-meta,
+.history-no-transcript {
+  margin-top: 0.3rem;
+  color: var(--chalkdim);
+  font-size: 0.7rem;
+  line-height: 1.4;
+}
+.history-delete {
+  flex: 0 0 auto;
+  color: var(--coral);
+  font-size: 0.7rem;
+}
+.history-delete:hover { text-decoration: underline; }
+.history-prompt {
+  margin-top: 0.75rem;
+  color: var(--chalkdim);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+.history-transcript {
+  margin-top: 0.75rem;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+.history-transcript summary {
+  color: var(--amber);
+  cursor: pointer;
+}
+.history-transcript p {
+  max-height: 15rem;
+  overflow: auto;
+  margin-top: 0.5rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--chalkdim);
+}

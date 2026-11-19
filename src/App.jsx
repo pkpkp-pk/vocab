@@ -5,7 +5,12 @@ import TopicCard from "./components/TopicCard.jsx";
 import SessionScreen from "./components/SessionScreen.jsx";
 import StatsPanel from "./components/StatsPanel.jsx";
 import CustomTopicModal from "./components/CustomTopicModal.jsx";
+import AuthModal from "./components/AuthModal.jsx";
+import HistoryModal from "./components/HistoryModal.jsx";
 import { useLocalStorage } from "./hooks/useLocalStorage.js";
+import { useAuth } from "./hooks/useAuth.js";
+import { savePracticeSession } from "./lib/sessionHistory.js";
+import { evaluateTranscript } from "./lib/coach.js";
 import { getRandomTopic, TOPICS, DIFFICULTIES } from "./data/topics.js";
 import { analyzeSpeech } from "./lib/analyzeSpeech.js";
 import { analyzeVocabulary } from "./lib/analyzeVocabulary.js";
@@ -44,6 +49,13 @@ export default function App() {
   const [difficulty, setDifficulty] = useState("all");
   const [topic, setTopic] = useState(() => getRandomTopic(TOPICS, {}));
   const [sessionResult, setSessionResult] = useState(null);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historySaveState, setHistorySaveState] = useState({ status: "" });
+  const [coachingState, setCoachingState] = useState({ status: "idle" });
+  const saveRunRef = useRef(0);
+  const coachRunRef = useRef(0);
+  const { supabase, user } = useAuth();
 
   const [customTopics, setCustomTopics] = useLocalStorage("speakstage.customTopics", [], Array.isArray);
   const [customModalOpen, setCustomModalOpen] = useState(false);
@@ -173,6 +185,43 @@ export default function App() {
     stats.annotated = alignTranscript(result.speechSegments, result.audioSamples, result.micFloorDb);
     setSessionResult({ result, stats });
 
+    const coachRun = ++coachRunRef.current;
+    if (!result.transcript?.trim()) {
+      setCoachingState({ status: "empty" });
+    } else if (!user || !supabase) {
+      setCoachingState({ status: "signed-out" });
+    } else {
+      setCoachingState({ status: "loading" });
+      evaluateTranscript({
+        supabase,
+        transcript: result.transcript,
+        topic: topic.title,
+        difficulty: difficulty === "all" ? topic.difficulty : difficulty,
+      })
+        .then((evaluation) => {
+          if (coachRunRef.current === coachRun) setCoachingState({ status: "ready", evaluation });
+        })
+        .catch((error) => {
+          if (coachRunRef.current === coachRun) setCoachingState({ status: "error", message: error.message });
+        });
+    }
+
+    const saveRun = ++saveRunRef.current;
+    if (user && supabase) {
+      setHistorySaveState({ status: "saving" });
+      savePracticeSession(supabase, user.id, topic, result)
+        .then(() => {
+          if (saveRunRef.current === saveRun) setHistorySaveState({ status: "saved" });
+        })
+        .catch((error) => {
+          if (saveRunRef.current === saveRun) {
+            setHistorySaveState({ status: "error", message: error.message || "please try again" });
+          }
+        });
+    } else {
+      setHistorySaveState({ status: "signed-out" });
+    }
+
     const today = dateKey();
     if (lastPracticeDate !== today) {
       setStreak(lastPracticeDate === yesterdayKey() ? streak + 1 : 1);
@@ -187,6 +236,9 @@ export default function App() {
       <Header
         onHome={() => setStage("select")}
         onOpenCustomTopics={() => setCustomModalOpen(true)}
+        onOpenAccount={() => setAccountOpen(true)}
+        onOpenHistory={() => setHistoryOpen(true)}
+        user={user}
         streak={streak}
       />
 
@@ -240,6 +292,8 @@ export default function App() {
             topic={topic}
             result={sessionResult.result}
             stats={sessionResult.stats}
+            historySaveState={historySaveState}
+            coachingState={coachingState}
             onRetry={() => setStage("session")}
             onNewTopic={() => {
               pickTopic();
@@ -256,6 +310,9 @@ export default function App() {
         onAdd={addCustomTopic}
         onDelete={deleteCustomTopic}
       />
+
+      <AuthModal open={accountOpen} onClose={() => setAccountOpen(false)} supabase={supabase} user={user} />
+      <HistoryModal open={historyOpen} onClose={() => setHistoryOpen(false)} supabase={supabase} user={user} />
 
       <footer className="app-footer">
         Built for daily fluency practice — waveform analysis stays in your browser;

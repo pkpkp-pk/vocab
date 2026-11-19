@@ -192,6 +192,28 @@
   flex-direction: column;
   gap: 0.75rem;
 }
+.history-save-note {
+  min-height: 1rem;
+  color: var(--chalkdim);
+  opacity: 0.8;
+  text-align: center;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.history-save-note.is-error { color: var(--coral); opacity: 1; }
+.coach-panel { padding: 1rem 1.25rem; }
+.coach-heading { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+.coach-heading h3 { margin-top: 0.2rem; font-family: var(--font-display); font-size: 1.1rem; }
+.coach-score { flex: 0 0 auto; color: var(--amber); }
+.coach-score strong { font-family: var(--font-display); font-size: 2rem; line-height: 1; }
+.coach-score span { margin-left: 0.2rem; color: var(--chalkdim); font-size: 0.75rem; }
+.coach-note { margin-top: 0.75rem; color: var(--chalkdim); font-size: 0.82rem; line-height: 1.5; }
+.coach-error { color: var(--coral); }
+.coach-suggestions { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 0.8rem; padding-left: 1.2rem; list-style: decimal; }
+.coach-suggestions li { padding-left: 0.2rem; color: var(--chalk); font-size: 0.84rem; line-height: 1.5; }
+.coach-suggestions li::marker { color: var(--amber); }
+.coach-privacy { margin-top: 0.8rem; color: var(--chalkdim); opacity: 0.7; font-size: 0.68rem; line-height: 1.45; }
 @media (min-width: 640px) {
   .stats-actions {
     flex-direction: row;

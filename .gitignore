@@ -5,6 +5,7 @@ public/models/
 # Local keys 
 .env
 .env.*
+!.env.example
 # Vercel CLI link dir
 .vercel
 # Agent settings (per CLAUDE.md)

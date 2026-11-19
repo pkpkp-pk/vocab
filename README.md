@@ -28,8 +28,15 @@ Build for production with `npm run build`; preview that build with
 
 ## Deploying to Vercel
 
-Import the repo, keep the default Vite preset (build command `npm run build`,
-output `dist`). No extra configuration is needed.
+Import the repo and keep the default Vite preset (build command `npm run build`,
+output `dist`). The optional Supabase integration supplies the project's public
+URL and publishable key at build time; connect it in Vercel and redeploy after
+applying `supabase/schema.sql` in the Supabase SQL Editor. For local use, copy
+`.env.example` to `.env.local` and fill in both the `VITE_SUPABASE_*` browser
+values and the matching server-side `SUPABASE_*` values. Basic practice and
+history need no Vercel Function. AI feedback uses one; add `GEMINI_API_KEY` as
+a server-only Vercel environment variable, apply the current SQL schema, and
+redeploy to enable it. Use `vercel dev` locally to run the API route.
 
 ## How it works
 
@@ -62,6 +69,14 @@ output `dist`). No extra configuration is needed.
   `src/lib/pitch.js`), so they work in any modern browser — no transcript
   needed. Auto-gain is disabled at capture time on purpose, so the volume
   stats reflect you, not your OS's gain riding.
+- **Accounts and history** — optional Supabase email/password accounts save
+  finished topics and transcripts to a private, per-user history. Browsing and
+  practicing still work without signing in. Custom topics and streaks remain
+  local to the browser.
+- **AI speaking feedback** — after a signed-in user finishes a session with a
+  transcript, Gemini returns a 0–100 score and 2–3 suggestions. A protected
+  Vercel Function keeps the Gemini key off the browser; each account is limited
+  to five evaluations per day.
 - **Topics stay local** — this version uses the built-in prompt bank and
   custom prompts saved in this browser. It has no AI topic-generation or API
   key settings feature.
@@ -87,7 +102,7 @@ src/
 
 - A fuller progress dashboard (streaks are already tracked in
   `localStorage` — `speakstage.streak` — just needs a view).
-- Save past transcripts to review growth over time.
+- Compare saved session scores and transcripts over time.
 - Difficulty auto-adjustment based on recent WPM/filler stats.
 - A "duel" mode: two topics, pick one on the spot, no shuffling allowed.
 - Export session stats as a shareable image/card.

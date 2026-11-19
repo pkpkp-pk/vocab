@@ -45,12 +45,15 @@ export default function SessionScreen({ topic, targetSeconds, onFinish, onExit }
   const [micLevel, setMicLevel] = useState(-60);
   const intervalRef = useRef(null);
   const startedAtRef = useRef(null);
+  const recorderRef = useRef(null);
+  const chunksRef = useRef([]);
   const calibStreamRef = useRef(null);
   const micFloorRef = useRef(null);
 
   const speech = useSpeechRecognition();
   const audio = useAudioAnalysis();
   const t0Ref = useRef(0);
+  const streamRef = useRef(null);
 
   useEffect(() => {
     if (running) {
@@ -63,9 +66,14 @@ export default function SessionScreen({ topic, targetSeconds, onFinish, onExit }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [running]);
 
-  // Stop a leftover mic-check stream if the user exits before starting.
+  // If the user exits mid-session, drop the recorder without emitting a blob;
+  // also stop a leftover mic-check stream if they never started a session.
   useEffect(
     () => () => {
+      if (recorderRef.current && recorderRef.current.state !== "inactive") {
+        recorderRef.current.onstop = null;
+        recorderRef.current.stop();
+      }
       calibStreamRef.current?.getTracks().forEach((t) => t.stop());
     },
     []
@@ -102,16 +110,30 @@ export default function SessionScreen({ topic, targetSeconds, onFinish, onExit }
     // at once races the two requests and recognition can fail with
     // "not-allowed"/"audio-capture" while the prompt is still open.)
     // If the mic check already opened a stream, reuse it — no prompt at all.
-    await audio.start(t0, { stream: calibStreamRef.current ?? undefined });
+    const stream = await audio.start(t0, { stream: calibStreamRef.current ?? undefined });
     calibStreamRef.current = null; // the hook owns it now (stopped at stop())
     t0Ref.current = t0;
-    if (speech.supported) speech.start(t0);
+    streamRef.current = stream; // kept for the error-retry path
+    if (speech.supported) speech.start(t0, stream);
+    if (stream && typeof MediaRecorder !== "undefined") {
+      chunksRef.current = [];
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : "";
+      const rec = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      rec.ondataavailable = (e) => {
+        if (e.data?.size) chunksRef.current.push(e.data);
+      };
+      rec.start(1000);
+      recorderRef.current = rec;
+    }
   };
 
   const endSession = () => {
     setRunning(false);
     clearInterval(intervalRef.current);
     if (speech.supported) speech.stop();
+    streamRef.current = null;
 
     // Timestamped final segments for waveform alignment. If the user finishes
     // mid-thought, the trailing interim text isn't in any segment yet — append
@@ -122,16 +144,30 @@ export default function SessionScreen({ topic, targetSeconds, onFinish, onExit }
     const leftover = full.length > joined.length ? full.slice(joined.length).trim() : "";
     if (leftover) speechSegments.push({ text: leftover, endedAt: elapsed });
 
-    onFinish({
-      transcript: full,
-      durationSeconds: elapsed,
-      audioSamples: audio.stop(),
-      speechSegments,
-      // "um"/"uh" Chrome stripped from finals, recovered from interims.
-      strippedFillers: speech.supported ? { ...speech.getStrippedFillers() } : {},
-      // Measured noise floor from the mic check (null = adaptive fallback).
-      micFloorDb: micFloorRef.current,
-    });
+    const finish = (audioBlob) =>
+      onFinish({
+        transcript: full,
+        durationSeconds: elapsed,
+        keywordsRevealed: revealedCount,
+        audioSamples: audio.stop(),
+        audioBlob,
+        speechSegments,
+        // "um"/"uh" Chrome stripped from finals, recovered from interims.
+        strippedFillers: speech.supported ? { ...speech.getStrippedFillers() } : {},
+        // Measured noise floor from the mic check (null = adaptive fallback).
+        micFloorDb: micFloorRef.current,
+      });
+
+    // Let MediaRecorder flush its final chunk before finishing.
+    const rec = recorderRef.current;
+    if (rec && rec.state !== "inactive") {
+      rec.onstop = () =>
+        finish(new Blob(chunksRef.current, { type: rec.mimeType || "audio/webm" }));
+      rec.stop();
+      recorderRef.current = null;
+    } else {
+      finish(null);
+    }
   };
 
   const revealKeywords = () => setRevealedCount((c) => Math.min(c + REVEAL_BATCH, topic.keywords.length));
@@ -212,7 +248,7 @@ export default function SessionScreen({ topic, targetSeconds, onFinish, onExit }
               {friendlySpeechError(speech.error)}{" "}
               <button
                 className="session-error-retry"
-                onClick={() => speech.start(t0Ref.current)}
+                onClick={() => speech.start(t0Ref.current, streamRef.current)}
               >
                 retry
               </button>
