@@ -92,18 +92,3 @@
 .custom-hint-btn:hover {
   color: var(--chalkdim);
 }
-
-.app-footer {
-  padding: 1rem 1.25rem;
-  text-align: center;
-  font-size: 0.75rem;
-  line-height: 1rem;
-  color: rgba(185, 201, 190, 0.58);
-  border-top: 1px solid rgba(183, 220, 198, 0.08);
-}
-@media (min-width: 640px) {
-  .app-footer {
-    padding-left: 2rem;
-    padding-right: 2rem;
-  }
-}

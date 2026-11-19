@@ -56,13 +56,6 @@ export default async function handler(req, res) {
         uses: 1,
         expireTime: new Date(now + 20 * 60 * 1000).toISOString(),
         newSessionExpireTime: new Date(now + 60 * 1000).toISOString(),
-        liveConnectConstraints: {
-          model: `models/${MODEL}`,
-          config: {
-            responseModalities: ["TEXT"],
-            inputAudioTranscription: { languageCodes: [], mode: "VERBATIM" },
-          },
-        },
       }),
       signal: AbortSignal.timeout(10_000),
     });

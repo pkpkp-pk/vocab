@@ -7,6 +7,7 @@ import StatsPanel from "./components/StatsPanel.jsx";
 import CustomTopicModal from "./components/CustomTopicModal.jsx";
 import AuthModal from "./components/AuthModal.jsx";
 import HistoryModal from "./components/HistoryModal.jsx";
+import AppFooter from "./components/AppFooter.jsx";
 import { useLocalStorage } from "./hooks/useLocalStorage.js";
 import { useAuth } from "./hooks/useAuth.js";
 import { savePracticeSession } from "./lib/sessionHistory.js";
@@ -232,7 +233,7 @@ export default function App() {
   };
 
   return (
-    <div className="app-shell">
+    <div className="app-shell" id="top">
       <Header
         onHome={() => setStage("select")}
         onOpenCustomTopics={() => setCustomModalOpen(true)}
@@ -314,10 +315,12 @@ export default function App() {
       <AuthModal open={accountOpen} onClose={() => setAccountOpen(false)} supabase={supabase} user={user} />
       <HistoryModal open={historyOpen} onClose={() => setHistoryOpen(false)} supabase={supabase} user={user} />
 
-      <footer className="app-footer">
-        Built for daily fluency practice — waveform analysis stays in your browser;
-        live transcription may send audio to your browser's speech service.
-      </footer>
+      <AppFooter
+        onHome={() => setStage("select")}
+        onAddTopic={() => setCustomModalOpen(true)}
+        onOpenHistory={() => setHistoryOpen(true)}
+        onOpenAccount={() => setAccountOpen(true)}
+      />
     </div>
   );
 }
