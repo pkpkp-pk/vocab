@@ -127,7 +127,8 @@ export function useSpeechRecognition() {
       });
       const credentials = await tokenResponse.json().catch(() => null);
       if (!tokenResponse.ok || !credentials?.token) {
-        throw new Error(credentials?.error || "token-request-failed");
+        const detail = credentials?.detail ? `: ${String(credentials.detail).slice(0, 180)}` : "";
+        throw new Error(`${credentials?.error || "token-request-failed"}${detail}`);
       }
 
       const socket = new WebSocket(`${LIVE_URL}?access_token=${encodeURIComponent(credentials.token)}`);
@@ -143,8 +144,19 @@ export function useSpeechRecognition() {
         }));
       };
       socket.onmessage = (event) => {
+        if (socketRef.current !== socket) return;
         let message;
         try { message = JSON.parse(event.data); } catch { return; }
+        if (message.error) {
+          const providerError = message.error;
+          const detail = String(providerError.message || "").slice(0, 180);
+          activeRef.current = false;
+          teardownAudio();
+          setListening(false);
+          setError(`gemini-api:${providerError.code || "unknown"}${detail ? `: ${detail}` : ""}`);
+          closeSocket();
+          return;
+        }
         if (message.setupComplete) {
           try {
             startAudio(stream, socket);
@@ -177,18 +189,22 @@ export function useSpeechRecognition() {
         }
       };
       socket.onerror = () => {
+        if (socketRef.current !== socket) return;
         if (!activeRef.current) return;
-        activeRef.current = false;
         teardownAudio();
         setListening(false);
-        setError("model-unavailable");
+        // Keep the session active until onclose can report the close code and
+        // reason; browsers otherwise hide the useful provider error here.
+        setError("websocket-error");
       };
-      socket.onclose = () => {
+      socket.onclose = (event) => {
+        if (socketRef.current !== socket) return;
         if (!activeRef.current) return;
         activeRef.current = false;
         teardownAudio();
         setListening(false);
-        setError("connection-closed");
+        const reason = String(event.reason || "").replace(/[\r\n]/g, " ").slice(0, 140);
+        setError(`websocket-close:${event.code}${reason ? `: ${reason}` : ""}`);
       };
     } catch (err) {
       activeRef.current = false;

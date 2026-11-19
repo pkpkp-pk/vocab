@@ -21,6 +21,15 @@ function micVerdict({ floorDb, peakDb, voicedPct }) {
 
 // Human-readable copy for Gemini Live API and browser audio errors.
 function friendlySpeechError(code) {
+  if (typeof code === "string" && code.startsWith("gemini-api:")) {
+    return `Gemini rejected the live session setup (${code.slice("gemini-api:".length)}).`;
+  }
+  if (typeof code === "string" && code.startsWith("websocket-close:")) {
+    return `Gemini closed the live connection (${code.slice("websocket-close:".length)}).`;
+  }
+  if (typeof code === "string" && code.startsWith("token-request-failed:")) {
+    return `Gemini could not issue a transcription token (${code.slice("token-request-failed:".length)}).`;
+  }
   switch (code) {
     case "sign-in-required":
     case "sign_in_required":
@@ -39,6 +48,7 @@ function friendlySpeechError(code) {
     case "token_request_failed":
     case "model-unavailable":
     case "connection-closed":
+    case "websocket-error":
       return "Gemini transcription could not connect. Check your connection and retry.";
     case "audio-unavailable":
       return "Audio capture is unavailable. Check your microphone and browser permissions.";

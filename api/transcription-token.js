@@ -71,10 +71,13 @@ export default async function handler(req, res) {
   }
 
   if (!providerResponse.ok) {
+    const errorPayload = await providerResponse.json().catch(() => null);
+    const detail = String(errorPayload?.error?.message || "").slice(0, 180);
     return reply(res, 502, {
       error: providerResponse.status === 401 || providerResponse.status === 403
         ? "model_key_invalid"
         : "token_request_failed",
+      ...(detail ? { detail } : {}),
     });
   }
   const payload = await providerResponse.json().catch(() => null);
