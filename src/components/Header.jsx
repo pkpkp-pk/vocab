@@ -1,6 +1,8 @@
+import { useState } from "react";
 import "./Header.css";
 
-export default function Header({ onOpenCustomTopics, onHome, onOpenAccount, onOpenHistory, user, streak }) {
+export default function Header({ onOpenCustomTopics, onOpenSettings, onHome, onOpenAccount, onOpenHistory, user, streak }) {
+  const [menuOpen, setMenuOpen] = useState(false);
   return (
     <header className="site-header">
       <button className="logo logo-home" type="button" onClick={onHome} aria-label="Vocab Speak home">
@@ -21,9 +23,27 @@ export default function Header({ onOpenCustomTopics, onHome, onOpenAccount, onOp
           {user ? user.email : "Sign in"}
         </button>
 
-        <button onClick={onOpenCustomTopics} aria-label="Add your own topics" className="icon-btn">
-          +
-        </button>
+        <div className="settings-menu-wrap">
+          <button
+            onClick={() => setMenuOpen((open) => !open)}
+            aria-label="Settings"
+            aria-expanded={menuOpen}
+            aria-haspopup="menu"
+            className="icon-btn settings-gear-btn"
+          >
+            ⚙
+          </button>
+          {menuOpen && (
+            <div className="settings-menu" role="menu">
+              <button role="menuitem" onClick={() => { setMenuOpen(false); onOpenCustomTopics(); }}>
+                Add your own topics
+              </button>
+              <button role="menuitem" onClick={() => { setMenuOpen(false); onOpenSettings(); }}>
+                Gemini API key
+              </button>
+            </div>
+          )}
+        </div>
 
       </div>
     </header>

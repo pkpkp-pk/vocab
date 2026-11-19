@@ -226,7 +226,7 @@ export default function StatsPanel({ topic, result, stats, onRetry, onNewTopic, 
               {coachingState.evaluation.suggestions.map((suggestion, index) => <li key={index}>{suggestion}</li>)}
             </ol>
           )}
-          <p className="coach-privacy">Microphone audio is streamed to Gemini Live for transcription, and the transcript is sent to Gemini for scoring. Google may use data sent on its free API tier to improve its products, so avoid personal details.</p>
+          <p className="coach-privacy">Browser speech recognition creates your transcript. The transcript is sent to Gemini for scoring and suggestions. Google may use data sent on its free API tier to improve its products, so avoid personal details.</p>
         </section>
       )}
 

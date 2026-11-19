@@ -7,6 +7,7 @@ import StatsPanel from "./components/StatsPanel.jsx";
 import CustomTopicModal from "./components/CustomTopicModal.jsx";
 import AuthModal from "./components/AuthModal.jsx";
 import HistoryModal from "./components/HistoryModal.jsx";
+import SettingsModal from "./components/SettingsModal.jsx";
 import { useLocalStorage } from "./hooks/useLocalStorage.js";
 import { useAuth } from "./hooks/useAuth.js";
 import { savePracticeSession } from "./lib/sessionHistory.js";
@@ -59,6 +60,8 @@ export default function App() {
 
   const [customTopics, setCustomTopics] = useLocalStorage("speakstage.customTopics", [], Array.isArray);
   const [customModalOpen, setCustomModalOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [geminiApiKey, setGeminiApiKey] = useLocalStorage("vocabSpeak.geminiApiKey", "", (v) => typeof v === "string");
   const [lastPracticeDate, setLastPracticeDate] = useLocalStorage(
     "speakstage.lastDate",
     null,
@@ -196,7 +199,9 @@ export default function App() {
         supabase,
         transcript: result.transcript,
         topic: topic.title,
+        topicPrompt: topic.prompt,
         difficulty: difficulty === "all" ? topic.difficulty : difficulty,
+        geminiApiKey,
       })
         .then((evaluation) => {
           if (coachRunRef.current === coachRun) setCoachingState({ status: "ready", evaluation });
@@ -236,6 +241,7 @@ export default function App() {
       <Header
         onHome={() => setStage("select")}
         onOpenCustomTopics={() => setCustomModalOpen(true)}
+        onOpenSettings={() => setSettingsOpen(true)}
         onOpenAccount={() => setAccountOpen(true)}
         onOpenHistory={() => setHistoryOpen(true)}
         user={user}
@@ -309,6 +315,13 @@ export default function App() {
         customTopics={customTopics}
         onAdd={addCustomTopic}
         onDelete={deleteCustomTopic}
+      />
+
+      <SettingsModal
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        geminiApiKey={geminiApiKey}
+        onSaveGeminiApiKey={setGeminiApiKey}
       />
 
       <AuthModal open={accountOpen} onClose={() => setAccountOpen(false)} supabase={supabase} user={user} />

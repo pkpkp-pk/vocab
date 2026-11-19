@@ -74,6 +74,32 @@
   gap: 0.5rem;
 }
 
+.settings-menu-wrap { position: relative; }
+.settings-gear-btn { font-size: 1.05rem; }
+.settings-menu {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 0.6rem);
+  right: 0;
+  width: 13rem;
+  padding: 0.35rem;
+  border: 1px solid rgba(223, 190, 255, 0.28);
+  border-radius: 0.9rem;
+  background: rgba(27, 20, 45, 0.98);
+  box-shadow: 0 12px 32px rgba(8, 5, 20, 0.4);
+  backdrop-filter: blur(12px);
+}
+.settings-menu button {
+  display: block;
+  width: 100%;
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.6rem;
+  color: var(--chalkdim);
+  text-align: left;
+  font-size: 0.82rem;
+}
+.settings-menu button:hover { background: rgba(223, 190, 255, 0.1); color: var(--chalk); }
+
 .header-text-btn {
   max-width: 12rem;
   overflow: hidden;

@@ -73,28 +73,13 @@
   width: 100%;
   max-width: 24rem;
   overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 24%, #000 76%, transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 24%, #000 76%, transparent);
 }
 @media (min-width: 640px) {
   .reel-window {
     height: 7rem;
   }
-}
-
-.reel-fade {
-  pointer-events: none;
-  position: absolute;
-  left: 0;
-  right: 0;
-  z-index: 10;
-  height: 2rem;
-}
-.reel-fade-top {
-  top: 0;
-  background: linear-gradient(to bottom, var(--stage-800), transparent);
-}
-.reel-fade-bottom {
-  bottom: 0;
-  background: linear-gradient(to top, var(--stage-800), transparent);
 }
 
 /* old and new titles stack absolutely during the 0.14s handoff */
@@ -234,13 +219,13 @@
 }
 
 @keyframes reel-in {
-  from { transform: translateY(-46px); opacity: 0; filter: blur(3px); }
-  to { transform: translateY(0); opacity: 1; filter: blur(0); }
+  from { transform: translateY(-46px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
 }
 
 @keyframes reel-out {
-  from { transform: translateY(0); opacity: 1; filter: blur(0); }
-  to { transform: translateY(46px); opacity: 0; filter: blur(3px); }
+  from { transform: translateY(0); opacity: 1; }
+  to { transform: translateY(46px); opacity: 0; }
 }
 
 @keyframes dot-pulse {

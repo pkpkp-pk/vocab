@@ -1,0 +1,4 @@
+.settings-key-form { display: grid; gap: 0.65rem; margin-top: 1rem; }
+.settings-key-note { margin: 0; line-height: 1.5; }
+.settings-saved { color: var(--mint); font-size: 0.8rem; }
+.settings-actions { display: flex; justify-content: flex-end; align-items: center; gap: 0.6rem; margin-top: 0.35rem; }

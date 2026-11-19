@@ -19,7 +19,7 @@ function micVerdict({ floorDb, peakDb, voicedPct }) {
   return `Mic sounds good (noise floor ${floorDb} dB).`;
 }
 
-// Human-readable copy for Gemini Live API and browser audio errors.
+// Human-readable copy for browser speech recognition errors.
 function friendlySpeechError(code) {
   if (typeof code === "string" && code.startsWith("gemini-api:")) {
     return `Gemini rejected the live session setup (${code.slice("gemini-api:".length)}).`;
@@ -27,13 +27,20 @@ function friendlySpeechError(code) {
   if (typeof code === "string" && code.startsWith("websocket-close:")) {
     return `Gemini closed the live connection (${code.slice("websocket-close:".length)}).`;
   }
-  if (typeof code === "string" && code.startsWith("token-request-failed:")) {
-    return `Gemini could not issue a transcription token (${code.slice("token-request-failed:".length)}).`;
+  if (typeof code === "string" && /^(token-request-failed|token_request_failed):/.test(code)) {
+    return `Gemini could not issue a transcription token (${code.slice(code.indexOf(":") + 1)}).`;
+  }
+  if (typeof code === "string" && code.startsWith("token_request_invalid:")) {
+    return `Gemini rejected the token setup (${code.slice("token_request_invalid:".length)}).`;
   }
   switch (code) {
     case "sign-in-required":
     case "sign_in_required":
       return "Sign in to use Gemini transcription, then retry.";
+    case "local-api-not-running":
+      return "The local transcription API is not running. Restart npm run dev on port 5173, then retry.";
+    case "local_api_failed":
+      return "The local transcription API failed to start. Check the terminal running npm run dev.";
     case "auth_not_configured":
     case "supabase_unavailable":
       return "Your account service could not be reached. Check the Supabase setup and retry.";
@@ -45,6 +52,9 @@ function friendlySpeechError(code) {
       return "Gemini transcription is not configured yet. Add GEMINI_API_KEY to Vercel and redeploy.";
     case "model_key_invalid":
       return "Gemini rejected the API key. Check GEMINI_API_KEY in Vercel settings.";
+    case "model_rate_limited":
+      return "Gemini's token quota has been reached. Try again later or review the project quota.";
+    case "token_request_invalid":
     case "token_request_failed":
     case "model-unavailable":
     case "connection-closed":
@@ -52,8 +62,25 @@ function friendlySpeechError(code) {
       return "Gemini transcription could not connect. Check your connection and retry.";
     case "audio-unavailable":
       return "Audio capture is unavailable. Check your microphone and browser permissions.";
+    case "audio-context-blocked":
+      return "Your browser blocked the live microphone stream. Tap retry, then allow audio when prompted.";
+    case "microphone-audio-not-flowing":
+      return "Gemini connected but no microphone audio reached it. Check the selected input device, then retry.";
+    case "gemini-setup-timeout":
+      return "Gemini did not complete the live connection. A browser extension, VPN, proxy, or network may be blocking secure WebSockets to Google.";
     default:
       return `Transcription error: ${code}.`;
+  }
+}
+
+function transcriptionStatus(state) {
+  switch (state) {
+    case "requesting-token": return "connecting to Gemini…";
+    case "connecting": return "opening live transcription…";
+    case "ready-for-speech": return "Gemini is ready — start speaking.";
+    case "receiving-audio": return "Gemini is receiving your microphone audio.";
+    case "finishing": return "finishing your transcript…";
+    default: return "listening…";
   }
 }
 
@@ -66,8 +93,6 @@ export default function SessionScreen({ topic, targetSeconds, onFinish, onExit }
   const [micLevel, setMicLevel] = useState(-60);
   const intervalRef = useRef(null);
   const startedAtRef = useRef(null);
-  const recorderRef = useRef(null);
-  const chunksRef = useRef([]);
   const calibStreamRef = useRef(null);
   const micFloorRef = useRef(null);
 
@@ -87,14 +112,9 @@ export default function SessionScreen({ topic, targetSeconds, onFinish, onExit }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [running]);
 
-  // If the user exits mid-session, drop the recorder without emitting a blob;
-  // also stop a leftover mic-check stream if they never started a session.
+  // If the user exits mid-session, stop any mic-check stream left open.
   useEffect(
     () => () => {
-      if (recorderRef.current && recorderRef.current.state !== "inactive") {
-        recorderRef.current.onstop = null;
-        recorderRef.current.stop();
-      }
       calibStreamRef.current?.getTracks().forEach((t) => t.stop());
     },
     []
@@ -136,18 +156,6 @@ export default function SessionScreen({ topic, targetSeconds, onFinish, onExit }
     t0Ref.current = t0;
     streamRef.current = stream; // kept for the error-retry path
     if (speech.supported && stream) speech.start(t0, stream);
-    if (stream && typeof MediaRecorder !== "undefined") {
-      chunksRef.current = [];
-      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
-        ? "audio/webm;codecs=opus"
-        : "";
-      const rec = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
-      rec.ondataavailable = (e) => {
-        if (e.data?.size) chunksRef.current.push(e.data);
-      };
-      rec.start(1000);
-      recorderRef.current = rec;
-    }
   };
 
   const endSession = async () => {
@@ -165,30 +173,16 @@ export default function SessionScreen({ topic, targetSeconds, onFinish, onExit }
     const leftover = full.length > joined.length ? full.slice(joined.length).trim() : "";
     if (leftover) speechSegments.push({ text: leftover, endedAt: elapsed });
 
-    const finish = (audioBlob) =>
-      onFinish({
+    onFinish({
         transcript: full,
         durationSeconds: elapsed,
         keywordsRevealed: revealedCount,
         audioSamples: audio.stop(),
-        audioBlob,
         speechSegments,
-        // Gemini VERBATIM mode keeps fillers in the returned transcript.
         strippedFillers: speech.supported ? { ...speech.getStrippedFillers() } : {},
         // Measured noise floor from the mic check (null = adaptive fallback).
         micFloorDb: micFloorRef.current,
       });
-
-    // Let MediaRecorder flush its final chunk before finishing.
-    const rec = recorderRef.current;
-    if (rec && rec.state !== "inactive") {
-      rec.onstop = () =>
-        finish(new Blob(chunksRef.current, { type: rec.mimeType || "audio/webm" }));
-      rec.stop();
-      recorderRef.current = null;
-    } else {
-      finish(null);
-    }
   };
 
   const revealKeywords = () => setRevealedCount((c) => Math.min(c + REVEAL_BATCH, topic.keywords.length));
@@ -258,9 +252,9 @@ export default function SessionScreen({ topic, targetSeconds, onFinish, onExit }
               <span className="transcript-final">{speech.finalTranscript}</span>
               <span className="transcript-interim">{speech.interimTranscript}</span>
               {!speech.error && !speech.finalTranscript && !speech.interimTranscript && (
-                <span className="transcript-waiting">listening…</span>
+                <span className="transcript-waiting">{transcriptionStatus(speech.connectionState)}</span>
               )}
-              <span className="engine-badge">Gemini Live transcription</span>
+              <span className="engine-badge">Browser speech recognition</span>
             </div>
           )}
 
@@ -269,7 +263,10 @@ export default function SessionScreen({ topic, targetSeconds, onFinish, onExit }
               {friendlySpeechError(speech.error)}{" "}
               <button
                 className="session-error-retry"
-                onClick={() => speech.start(t0Ref.current, streamRef.current)}
+                onClick={() => {
+                  speech.prepare();
+                  speech.start(t0Ref.current, streamRef.current);
+                }}
               >
                 retry
               </button>
@@ -286,7 +283,7 @@ export default function SessionScreen({ topic, targetSeconds, onFinish, onExit }
 
       {!speech.supported && (
         <p className="session-note">
-          This browser does not support live audio capture. The timer and keyword prompts still work here.
+          This browser does not support speech recognition. The timer and keyword prompts still work here.
         </p>
       )}
 

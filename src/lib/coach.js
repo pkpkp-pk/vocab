@@ -12,7 +12,7 @@ const ERROR_MESSAGES = {
   model_unavailable: "Gemini could not be reached. Try again in a moment.",
 };
 
-export async function evaluateTranscript({ supabase, transcript, topic, difficulty }) {
+export async function evaluateTranscript({ supabase, transcript, topic, topicPrompt, difficulty, geminiApiKey }) {
   const { data, error } = await supabase.auth.getSession();
   const accessToken = data.session?.access_token;
   if (error || !accessToken) throw new Error(ERROR_MESSAGES.sign_in_required);
@@ -24,8 +24,9 @@ export async function evaluateTranscript({ supabase, transcript, topic, difficul
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${accessToken}`,
+        ...(geminiApiKey ? { "X-Gemini-Api-Key": geminiApiKey } : {}),
       },
-      body: JSON.stringify({ transcript, topic, difficulty }),
+      body: JSON.stringify({ transcript, topic, topicPrompt, difficulty }),
     });
   } catch {
     throw new Error("Could not reach the coaching function. On your computer, run the project with Vercel Dev to use its API route.");

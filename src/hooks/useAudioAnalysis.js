@@ -3,8 +3,7 @@ import { detectPitch } from "../lib/pitch.js";
 
 // Captures the microphone and samples loudness + pitch at display rate into
 // a ref array (never setState at 60 Hz). start() resolves the MediaStream so
-// the caller can also attach a MediaRecorder to the same mic — one
-// permission prompt, two consumers.
+// the caller can also attach browser speech recognition to the same session.
 //
 // autoGainControl is deliberately OFF: with AGC on, the OS normalizes the
 // input level and the volume stats would measure the gain rider, not the

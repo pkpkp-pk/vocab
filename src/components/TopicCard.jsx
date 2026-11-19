@@ -43,8 +43,6 @@ export default function TopicCard({ topic, spinning, spinDisplay, justLanded, on
         {spinning ? (
           <div className="spin-reel">
             <div className="reel-window">
-              <div className="reel-fade reel-fade-top" />
-              <div className="reel-fade reel-fade-bottom" />
               {leavingTopic && (
                 <div className="reel-item reel-leave">
                   <span className="reel-cat">{leavingMeta.categoryLabel}</span>
