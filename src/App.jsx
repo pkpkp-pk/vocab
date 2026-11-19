@@ -7,7 +7,6 @@ import StatsPanel from "./components/StatsPanel.jsx";
 import CustomTopicModal from "./components/CustomTopicModal.jsx";
 import AuthModal from "./components/AuthModal.jsx";
 import HistoryModal from "./components/HistoryModal.jsx";
-import AppFooter from "./components/AppFooter.jsx";
 import { useLocalStorage } from "./hooks/useLocalStorage.js";
 import { useAuth } from "./hooks/useAuth.js";
 import { savePracticeSession } from "./lib/sessionHistory.js";
@@ -315,7 +314,6 @@ export default function App() {
       <AuthModal open={accountOpen} onClose={() => setAccountOpen(false)} supabase={supabase} user={user} />
       <HistoryModal open={historyOpen} onClose={() => setHistoryOpen(false)} supabase={supabase} user={user} />
 
-      <AppFooter />
     </div>
   );
 }
